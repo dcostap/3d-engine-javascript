@@ -15,18 +15,33 @@ class Vector {
         this.y = y ? y : 0.0;
         this.z = z ? z : 0.0;
     }
+
+    get_length() {
+        return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
+    }
 }
 
-function dot_product(v1, v2) {
+let light_dir = new Vector(0, 0, -1)
+
+function vec_dot_product(v1, v2) {
     return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
 }
 
-function cross_product(v1, v2) {
+function vec_cross_product(v1, v2) {
     return new Vector(
         v1.y * v2.z - v1.z * v2.y,
         v1.z * v2.x - v1.x * v2.z,
         v1.x * v2.y - v1.y * v2.x,
     );
+}
+
+function vec_sub(v1, v2) {
+    return new Vector(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z);
+}
+
+function vec_get_unit(v) {
+    let length = v.get_length();
+    return new Vector(v.x / length, v.y / length, v.z / length);
 }
 
 class Mesh {
@@ -35,18 +50,18 @@ class Mesh {
     triangles = [];
 
     constructor(...triangles) {
-        this.triangles.push(...triangles)
+        this.triangles.push(...triangles);
     }
 
     apply_transformations() {
-        const cosa = Math.cosDeg(this.rotation.y);
-        const sina = Math.sinDeg(this.rotation.y);
+        const cosa = Math.cosDeg(this.rotation.z);
+        const sina = Math.sinDeg(this.rotation.z);
 
-        const cosb = Math.cosDeg(this.rotation.x);
-        const sinb = Math.sinDeg(this.rotation.x);
+        const cosb = Math.cosDeg(this.rotation.y);
+        const sinb = Math.sinDeg(this.rotation.y);
 
-        const cosc = Math.cosDeg(this.rotation.z);
-        const sinc = Math.sinDeg(this.rotation.z);
+        const cosc = Math.cosDeg(this.rotation.x);
+        const sinc = Math.sinDeg(this.rotation.x);
 
         const Axx = cosa * cosb;
         const Axy = cosa * sinb * sinc - sina * cosc;
@@ -61,7 +76,7 @@ class Mesh {
         const Azz = cosb * cosc;
 
         for (let triangle of this.triangles) {
-            for (let pairs of [[triangle.v1, triangle.trans_v1], [triangle.v2, triangle.trans_v2], [triangle.v3, triangle.trans_v3]]) {
+            for (let pairs of [[triangle.v1, triangle.trans_v1], [triangle.v2, triangle.trans_v2], [triangle.v3, triangle.trans_v3], [triangle.normal, triangle.trans_normal]]) {
                 let vertex = pairs[0];
                 let transformed_vertex = pairs[1];
                 const px = vertex.x;
@@ -72,9 +87,11 @@ class Mesh {
                 transformed_vertex.y = Ayx * px + Ayy * py + Ayz * pz;
                 transformed_vertex.z = Azx * px + Azy * py + Azz * pz;
 
-                transformed_vertex.x += this.position.x;
-                transformed_vertex.y += this.position.y;
-                transformed_vertex.z += this.position.z;
+                if (transformed_vertex !== triangle.trans_normal) {
+                    transformed_vertex.x += this.position.x;
+                    transformed_vertex.y += this.position.y;
+                    transformed_vertex.z += this.position.z;
+                }
             }
         }
     }
@@ -109,13 +126,20 @@ class Mesh {
 
 class Triangle {
     constructor(v1, v2, v3) {
-        this.v1 = v1 ? v1 : new Vector();
-        this.v2 = v2 ? v2 : new Vector();
-        this.v3 = v3 ? v3 : new Vector();
+        this.v1 = v1;
+        this.v2 = v2;
+        this.v3 = v3;
 
         this.trans_v1 = new Vector();
         this.trans_v2 = new Vector();
         this.trans_v3 = new Vector();
+
+        let v1v2 = vec_sub(this.v2, this.v1);
+        let v1v3 = vec_sub(this.v3, this.v1);
+        this.normal = vec_get_unit(vec_cross_product(vec_get_unit(v1v2), vec_get_unit(v1v3)));
+        this.trans_normal = new Vector();
+
+        this.is_drawn = true;
     }
 }
 
@@ -139,12 +163,12 @@ function make_cube(size) {
         // back face
         ...plane_to_triangles(
             new Vector(0, 0, size),
-            new Vector(0, size, size),
+            new Vector(size, 0, size),
             new Vector(size, size, size),
-            new Vector(size, 0, size)
+            new Vector(0, size, size),
         ),
 
-        // right face
+        // // right face
         ...plane_to_triangles(
             new Vector(size, 0, 0),
             new Vector(size, size, 0),
@@ -152,15 +176,15 @@ function make_cube(size) {
             new Vector(size, 0, size)
         ),
 
-        // left face
+        // // left face
         ...plane_to_triangles(
             new Vector(0, 0, 0),
-            new Vector(0, size, 0),
+            new Vector(0, 0, size),
             new Vector(0, size, size),
-            new Vector(0, 0, size)
+            new Vector(0, size, 0),
         ),
 
-        // top face
+        // // top face
         ...plane_to_triangles(
             new Vector(0, size, 0),
             new Vector(0, size, size),
@@ -168,12 +192,12 @@ function make_cube(size) {
             new Vector(size, size, 0)
         ),
 
-        // bottom face
+        // // bottom face
         ...plane_to_triangles(
             new Vector(0, 0, 0),
-            new Vector(0, 0, size),
+            new Vector(size, 0, 0),
             new Vector(size, 0, size),
-            new Vector(size, 0, 0)
+            new Vector(0, 0, size),
         ),
     );
 
@@ -183,7 +207,7 @@ function make_cube(size) {
 }
 
 let meshes = [
-    make_cube(50)
+    make_cube(35)
 ]
 
 function setup() {
@@ -202,13 +226,14 @@ function draw() {
         // mesh.position.x += 1;
         mesh.rotation.y += 0.6;
         mesh.rotation.x += 0.6;
-        mesh.rotation.z += 0.6;
+        // mesh.rotation.z += 0.6;
 
         mesh.apply_transformations();
         for (let triangle of mesh.triangles) {
             project_triangle(triangle);
-            // if (proj.v1.z > z_near && proj.v2.z > z_near && proj.v3.z > z_near)
-            draw_triangle(triangle);
+
+            if (triangle.is_drawn)
+                draw_triangle(triangle);
         }
     }
 }
@@ -217,8 +242,11 @@ function draw_triangle(triangle) {
     noStroke();
     beginShape();
 
-    //fill(237, 34, 93);
-    noFill();
+    let light_diff = vec_dot_product(light_dir, triangle.trans_normal)
+
+    fill(255 * light_diff, 255 * light_diff, 255 * light_diff);
+
+    // noFill();
     stroke(237, 34, 93);
     strokeWeight(2);
     vertex(triangle.trans_v1.x, height - triangle.trans_v1.y);
@@ -237,9 +265,18 @@ const to_degrees = function (radians) {
 }
 
 function project_triangle(triangle) {
-    project_vertex(triangle.trans_v1);
-    project_vertex(triangle.trans_v2);
-    project_vertex(triangle.trans_v3);
+    // Cull backfaces
+    let tri_to_cam = vec_get_unit(vec_sub(new Vector(), triangle.trans_v1));
+    let diff = vec_dot_product(triangle.trans_normal, tri_to_cam);
+
+    if (diff > 0) {
+        project_vertex(triangle.trans_v1);
+        project_vertex(triangle.trans_v2);
+        project_vertex(triangle.trans_v3);
+        triangle.is_drawn = true;
+    } else {
+        triangle.is_drawn = false;
+    }
 }
 
 Math.cosDeg = function (angle) {
