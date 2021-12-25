@@ -137,7 +137,7 @@ function setup() {
     createCanvas(width, height);
 
     for (let mesh of meshes) {
-        // mesh.position.z += 10;
+        mesh.position.z += 120;
     }
 }
 
@@ -145,13 +145,15 @@ function draw() {
     background(220);
 
     for (let mesh of meshes) {
-        mesh.position.z += 1;
+        // mesh.position.z += 1;
         // mesh.position.x += 1;
-        // mesh.rotation.y += 0.4;
+        mesh.rotation.y += 0.6;
+        mesh.rotation.x += 0.6;
+        mesh.rotation.z += 0.6;
         for (let triangle of mesh.triangles) {
             let proj = project_triangle(mesh, triangle);
             // if (proj.v1.z > z_near && proj.v2.z > z_near && proj.v3.z > z_near)
-                draw_triangle(proj);
+            draw_triangle(proj);
         }
     }
 }
@@ -200,9 +202,34 @@ Math.sinDeg = function (angle) {
 function project_vertex(mesh, vertex) {
     let result = new Vector();
 
-    let transformed_x = vertex.x * Math.cosDeg(mesh.rotation.y) - vertex.z * Math.sinDeg(mesh.rotation.y);
-    let transformed_y = vertex.y;
-    let transformed_z = vertex.z * Math.cosDeg(mesh.rotation.y) + vertex.x * Math.sinDeg(mesh.rotation.y)
+    const cosa = Math.cosDeg(mesh.rotation.y);
+    const sina = Math.sinDeg(mesh.rotation.y);
+
+    const cosb = Math.cosDeg(mesh.rotation.x);
+    const sinb = Math.sinDeg(mesh.rotation.x);
+
+    const cosc = Math.cosDeg(mesh.rotation.z);
+    const sinc = Math.sinDeg(mesh.rotation.z);
+
+    const Axx = cosa * cosb;
+    const Axy = cosa * sinb * sinc - sina * cosc;
+    const Axz = cosa * sinb * cosc + sina * sinc;
+
+    const Ayx = sina * cosb;
+    const Ayy = sina * sinb * sinc + cosa * cosc;
+    const Ayz = sina * sinb * cosc - cosa * sinc;
+
+    const Azx = -sinb;
+    const Azy = cosb * sinc;
+    const Azz = cosb * cosc;
+
+    const px = vertex.x;
+    const py = vertex.y;
+    const pz = vertex.z;
+
+    let transformed_x = Axx * px + Axy * py + Axz * pz;
+    let transformed_y = Ayx * px + Ayy * py + Ayz * pz;
+    let transformed_z = Azx * px + Azy * py + Azz * pz;
 
     transformed_x += mesh.position.x;
     transformed_y += mesh.position.y;
