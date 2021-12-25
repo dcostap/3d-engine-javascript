@@ -207,15 +207,48 @@ function make_cube(size) {
 }
 
 let meshes = [
-    make_cube(35)
+    // make_cube(35)
 ]
+
+async function load_meshes() {
+    fetch("mario.obj")
+        .then(r => r.text())
+        .then(t => {
+            let vertices = [];
+            let triangles = []
+            for (let line of t.split("\n")) {
+                let parts = line.split(" ")
+                if (parts[0] == "v") {
+                    vertices.push([parts[1], parts[2], parts[3]]);
+                } else if (parts[0] == "f" && parts.length == 4) {
+                    let v1 = vertices[parts[1] - 1];
+                    let v2 = vertices[parts[2] - 1];
+                    let v3 = vertices[parts[3] - 1];
+                    console.log(v1);
+                    triangles.push(
+                        new Triangle(
+                            new Vector(v1[0], v1[1], v1[2]),
+                            new Vector(v2[0], v2[1], v2[2]),
+                            new Vector(v3[0], v3[1], v3[2])
+                        )
+                    )
+                }
+            }
+
+            return new Mesh(...triangles);
+        })
+        .then(m => {
+            meshes.push(m);
+            console.log(m);
+            for (let mesh of meshes) {
+                mesh.position.z += 50;
+            }
+        });
+}
 
 function setup() {
     createCanvas(width, height);
-
-    for (let mesh of meshes) {
-        mesh.position.z += 120;
-    }
+    load_meshes();
 }
 
 function draw() {
@@ -248,7 +281,7 @@ function draw_triangle(triangle) {
 
     // noFill();
     stroke(237, 34, 93);
-    strokeWeight(2);
+    strokeWeight(1);
     vertex(triangle.trans_v1.x, height - triangle.trans_v1.y);
     vertex(triangle.trans_v2.x, height - triangle.trans_v2.y);
     vertex(triangle.trans_v3.x, height - triangle.trans_v3.y);
