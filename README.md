@@ -8,6 +8,10 @@ I project every triangle to the 3D space using maths and stuff. I don't even use
 
 It's so inefficient the Mario model from SM64 already lags. Outrageous!
 
+## Check it out
+
+https://dcostap.github.io/lousy-3d-engine-javascript/
+
 ## Usages
 
 none lol
