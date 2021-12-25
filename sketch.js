@@ -262,11 +262,23 @@ function draw() {
         // mesh.rotation.z += 0.6;
 
         mesh.apply_transformations();
+
+        let drawn_triangles = [];
         for (let triangle of mesh.triangles) {
             project_triangle(triangle);
 
             if (triangle.is_drawn)
-                draw_triangle(triangle);
+                drawn_triangles.push(triangle);
+        }
+
+        drawn_triangles.sort((a, b) => {
+            let a_avg_z = (a.trans_v1.z + a.trans_v2.z + a.trans_v3.z) / 3;
+            let b_avg_z = (b.trans_v1.z + b.trans_v2.z + b.trans_v3.z) / 3;
+            return a_avg_z - b_avg_z;
+        });
+
+        for (let triangle of drawn_triangles) {
+            draw_triangle(triangle);
         }
     }
 }
