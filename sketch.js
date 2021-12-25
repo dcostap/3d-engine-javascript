@@ -17,6 +17,18 @@ class Vector {
     }
 }
 
+function dot_product(v1, v2) {
+    return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+}
+
+function cross_product(v1, v2) {
+    return new Vector(
+        v1.y * v2.z - v1.z * v2.y,
+        v1.z * v2.x - v1.x * v2.z,
+        v1.x * v2.y - v1.y * v2.x,
+    );
+}
+
 class Mesh {
     position = new Vector();
     rotation = new Vector();
@@ -24,6 +36,47 @@ class Mesh {
 
     constructor(...triangles) {
         this.triangles.push(...triangles)
+    }
+
+    apply_transformations() {
+        const cosa = Math.cosDeg(this.rotation.y);
+        const sina = Math.sinDeg(this.rotation.y);
+
+        const cosb = Math.cosDeg(this.rotation.x);
+        const sinb = Math.sinDeg(this.rotation.x);
+
+        const cosc = Math.cosDeg(this.rotation.z);
+        const sinc = Math.sinDeg(this.rotation.z);
+
+        const Axx = cosa * cosb;
+        const Axy = cosa * sinb * sinc - sina * cosc;
+        const Axz = cosa * sinb * cosc + sina * sinc;
+
+        const Ayx = sina * cosb;
+        const Ayy = sina * sinb * sinc + cosa * cosc;
+        const Ayz = sina * sinb * cosc - cosa * sinc;
+
+        const Azx = -sinb;
+        const Azy = cosb * sinc;
+        const Azz = cosb * cosc;
+
+        for (let triangle of this.triangles) {
+            for (let pairs of [[triangle.v1, triangle.trans_v1], [triangle.v2, triangle.trans_v2], [triangle.v3, triangle.trans_v3]]) {
+                let vertex = pairs[0];
+                let transformed_vertex = pairs[1];
+                const px = vertex.x;
+                const py = vertex.y;
+                const pz = vertex.z;
+
+                transformed_vertex.x = Axx * px + Axy * py + Axz * pz;
+                transformed_vertex.y = Ayx * px + Ayy * py + Ayz * pz;
+                transformed_vertex.z = Azx * px + Azy * py + Azz * pz;
+
+                transformed_vertex.x += this.position.x;
+                transformed_vertex.y += this.position.y;
+                transformed_vertex.z += this.position.z;
+            }
+        }
     }
 
     set_origin_to_center() {
@@ -55,14 +108,14 @@ class Mesh {
 }
 
 class Triangle {
-    v1;
-    v2;
-    v3;
-
     constructor(v1, v2, v3) {
         this.v1 = v1 ? v1 : new Vector();
         this.v2 = v2 ? v2 : new Vector();
         this.v3 = v3 ? v3 : new Vector();
+
+        this.trans_v1 = new Vector();
+        this.trans_v2 = new Vector();
+        this.trans_v3 = new Vector();
     }
 }
 
@@ -150,10 +203,12 @@ function draw() {
         mesh.rotation.y += 0.6;
         mesh.rotation.x += 0.6;
         mesh.rotation.z += 0.6;
+
+        mesh.apply_transformations();
         for (let triangle of mesh.triangles) {
-            let proj = project_triangle(mesh, triangle);
+            project_triangle(triangle);
             // if (proj.v1.z > z_near && proj.v2.z > z_near && proj.v3.z > z_near)
-            draw_triangle(proj);
+            draw_triangle(triangle);
         }
     }
 }
@@ -166,10 +221,10 @@ function draw_triangle(triangle) {
     noFill();
     stroke(237, 34, 93);
     strokeWeight(2);
-    vertex(triangle.v1.x, height - triangle.v1.y);
-    vertex(triangle.v2.x, height - triangle.v2.y);
-    vertex(triangle.v3.x, height - triangle.v3.y);
-    vertex(triangle.v1.x, height - triangle.v1.y);
+    vertex(triangle.trans_v1.x, height - triangle.trans_v1.y);
+    vertex(triangle.trans_v2.x, height - triangle.trans_v2.y);
+    vertex(triangle.trans_v3.x, height - triangle.trans_v3.y);
+    vertex(triangle.trans_v1.x, height - triangle.trans_v1.y);
     endShape();
 }
 
@@ -181,14 +236,10 @@ const to_degrees = function (radians) {
     return radians * 180 / Math.PI;
 }
 
-function project_triangle(mesh, triangle) {
-    let result = new Triangle();
-
-    result.v1 = project_vertex(mesh, triangle.v1);
-    result.v2 = project_vertex(mesh, triangle.v2);
-    result.v3 = project_vertex(mesh, triangle.v3);
-
-    return result;
+function project_triangle(triangle) {
+    project_vertex(triangle.trans_v1);
+    project_vertex(triangle.trans_v2);
+    project_vertex(triangle.trans_v3);
 }
 
 Math.cosDeg = function (angle) {
@@ -199,79 +250,34 @@ Math.sinDeg = function (angle) {
     return Math.sin(to_radians(angle));
 }
 
-function project_vertex(mesh, vertex) {
-    let result = new Vector();
-
-    const cosa = Math.cosDeg(mesh.rotation.y);
-    const sina = Math.sinDeg(mesh.rotation.y);
-
-    const cosb = Math.cosDeg(mesh.rotation.x);
-    const sinb = Math.sinDeg(mesh.rotation.x);
-
-    const cosc = Math.cosDeg(mesh.rotation.z);
-    const sinc = Math.sinDeg(mesh.rotation.z);
-
-    const Axx = cosa * cosb;
-    const Axy = cosa * sinb * sinc - sina * cosc;
-    const Axz = cosa * sinb * cosc + sina * sinc;
-
-    const Ayx = sina * cosb;
-    const Ayy = sina * sinb * sinc + cosa * cosc;
-    const Ayz = sina * sinb * cosc - cosa * sinc;
-
-    const Azx = -sinb;
-    const Azy = cosb * sinc;
-    const Azz = cosb * cosc;
-
-    const px = vertex.x;
-    const py = vertex.y;
-    const pz = vertex.z;
-
-    let transformed_x = Axx * px + Axy * py + Axz * pz;
-    let transformed_y = Ayx * px + Ayy * py + Ayz * pz;
-    let transformed_z = Azx * px + Azy * py + Azz * pz;
-
-    transformed_x += mesh.position.x;
-    transformed_y += mesh.position.y;
-    transformed_z += mesh.position.z;
-
+function project_vertex(vertex) {
     // project from screen units to -1 -> 1
-    transformed_x /= width;
-    transformed_y /= height;
+    vertex.x /= width;
+    vertex.y /= height;
 
-    // transformed_x *= 2; transformed_y *= 2;
-    // transformed_x -= 1; transformed_y -= 1;
-
-    transformed_z /= z_far - z_near;
-    // transformed_z += 1;
+    vertex.z /= z_far - z_near;
+    // vertex.z += 1;
 
     // inverse tangent of half of FOV
     let f = 1 / Math.tan(to_radians(fov / 2.0));
     let q = z_far / (z_far - z_near);
 
-    result.x = aspect_ratio * f * transformed_x;
-    console.log(transformed_x);
-    result.y = f * transformed_y;
-    result.z = transformed_z * (q - (q * z_near));
+    let orig_z = vertex.z;
 
-    if (transformed_z != 0) {
-        result.x /= transformed_z;
-        result.y /= transformed_z;
+    vertex.x = aspect_ratio * f * vertex.x;
+    vertex.y = f * vertex.y;
+    vertex.z = vertex.z * (q - (q * z_near));
+
+    if (vertex.z != 0) {
+        vertex.x /= orig_z;
+        vertex.y /= orig_z;
     }
 
-    // result.x += 1;
-    // result.y += 1;
-
-    // result.x /= 2;
-    // result.y /= 2;
-
-    result.x *= width;
-    result.y *= height;
+    vertex.x *= width;
+    vertex.y *= height;
 
     // view is centered,
     // objects at (0, 0) are in the middle if camera is in (0, 0)
-    result.x += width / 2;
-    result.y += height / 2;
-
-    return result;
+    vertex.x += width / 2;
+    vertex.y += height / 2;
 }
