@@ -1,6 +1,6 @@
 ## What even is this
 
-As the title says, this is a lousy / horrible / extremely useless 3d engine written in javascript.
+This is a horrible / lousy / extremely inefficient 3D engine written in javascript.
 
 I use the Processing library to draw the triangles. 
 
