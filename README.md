@@ -10,7 +10,7 @@ It's so inefficient the Mario model from SM64 already lags. Outrageous!
 
 ## Check it out
 
-https://dcostap.github.io/lousy-3d-engine-javascript/
+https://dcostap.github.io/3d-engine-javascript/
 
 ## Usages
 
